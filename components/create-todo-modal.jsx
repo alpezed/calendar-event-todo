@@ -12,15 +12,10 @@ import moment from "moment";
 import "react-dates/lib/css/_datepicker.css";
 import "react-dates/initialize";
 
+import { SERVICES } from "@/utils";
 import DateInput from "./date-input";
 import AttachmentPreview from "./attachment-preview";
 import Services from "./services";
-
-const SERVICES = [
-	{ id: 1, name: "General Cleaning" },
-	{ id: 2, name: "Wash Clothes" },
-	{ id: 3, name: "Maintenance" },
-];
 
 const CreateTodoModal = ({
 	mode,
