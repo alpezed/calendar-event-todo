@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import Image from "next/image";
-import ButtonGroup from "react-bootstrap/ButtonGroup";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
-// import DatePicker from "react-bootstrap-date-picker";
 import { DayPickerSingleDateController } from "react-dates";
 import Dropdown from "react-bootstrap/Dropdown";
 import moment from "moment";
@@ -15,6 +13,8 @@ import "react-dates/lib/css/_datepicker.css";
 import "react-dates/initialize";
 
 import DateInput from "./date-input";
+import AttachmentPreview from "./attachment-preview";
+import Services from "./services";
 
 const SERVICES = [
 	{ id: 1, name: "General Cleaning" },
@@ -28,12 +28,9 @@ const CreateTodoModal = ({
 	isVisible,
 	onClose,
 	onCreateTodo,
+	fields,
+	setFields,
 }) => {
-	const [services, setServices] = useState(SERVICES);
-	const [fields, setFields] = useState({
-		services: [],
-		files: [],
-	});
 	const [focused, setFocused] = useState(false);
 
 	const { getRootProps, getInputProps } = useDropzone({
@@ -41,7 +38,13 @@ const CreateTodoModal = ({
 			files.forEach(file => {
 				setFields(prevFields => ({
 					...prevFields,
-					files: [...prevFields.files, URL.createObjectURL(file)],
+					files: [
+						...(prevFields.files ?? []),
+						{
+							type: file.type.startsWith("image") ? "image" : "video",
+							preview: URL.createObjectURL(file),
+						},
+					],
 				}));
 			});
 		},
@@ -49,9 +52,22 @@ const CreateTodoModal = ({
 
 	useEffect(() => {
 		if (mode === "edit") {
-			setFields(editing);
+			setFields(prevFields => {
+				const currentServices = [...(prevFields.services ?? [])].map(srv => ({
+					...(editing?.services.includes(srv.name)
+						? { ...srv, isChecked: true }
+						: { ...srv, isChecked: false }),
+				}));
+
+				return {
+					...editing,
+					services: currentServices.filter(
+						(srv, i, arr) => arr.findIndex(s => srv.name === s.name) === i
+					),
+				};
+			});
 		} else {
-			setFields({ services: [], files: [] });
+			setFields({ services: SERVICES, files: [] });
 		}
 	}, [mode, editing]);
 
@@ -72,26 +88,30 @@ const CreateTodoModal = ({
 	function onAddNewService() {
 		const newService = window.prompt("Add new service");
 		if (newService) {
-			setServices(prevServices => [
-				...prevServices,
-				{
-					id: prevServices.length + 1,
-					name: newService,
-					new: true,
-					isChecked: true,
-				},
-			]);
+			setFields(prevFields => ({
+				...prevFields,
+				services: [
+					...(prevFields.services || []),
+					{
+						id: prevFields.services.length + 1,
+						name: newService,
+						new: true,
+						isChecked: true,
+					},
+				],
+			}));
 		}
 	}
 
 	function onEditService(editService) {
 		const newService = window.prompt("Edit service", editService.name);
 		if (newService) {
-			setServices(prevServices =>
-				prevServices.map(srv => ({
+			setFields(prevFields => ({
+				...prevFields,
+				services: [...(prevFields.services || [])].map(srv => ({
 					...(srv.id === editService.id ? { ...srv, name: newService } : srv),
-				}))
-			);
+				})),
+			}));
 		}
 	}
 
@@ -100,9 +120,12 @@ const CreateTodoModal = ({
 			"Are you sure you want to delete this service"
 		);
 		if (deleteService) {
-			setServices(prevServices =>
-				prevServices.filter(srv => srv.id !== editService.id)
-			);
+			setFields(prevFields => ({
+				...prevFields,
+				services: [...(prevFields.services || [])].filter(
+					srv => srv.id !== editService.id
+				),
+			}));
 		}
 	}
 
@@ -110,12 +133,16 @@ const CreateTodoModal = ({
 		if (e.target.checked) {
 			setFields(prevFields => ({
 				...prevFields,
-				services: [...(prevFields?.services || []), e.target.value],
+				services: [...(prevFields?.services || [])].map(srv => ({
+					...(srv.name === e.target.value ? { ...srv, isChecked: true } : srv),
+				})),
 			}));
 		} else {
 			setFields(prevFields => ({
 				...prevFields,
-				services: prevFields.services.filter(field => field !== e.target.value),
+				services: [...(prevFields?.services || [])].map(srv => ({
+					...(srv.name === e.target.value ? { ...srv, isChecked: false } : srv),
+				})),
 			}));
 		}
 	}
@@ -125,7 +152,11 @@ const CreateTodoModal = ({
 			alert("Please enter event name");
 			return;
 		}
-		onCreateTodo({ ...fields, date: !fields.date ? moment() : fields.date });
+		onCreateTodo({
+			...fields,
+			date: !fields.date ? moment() : fields.date,
+			services: fields.services.filter(srv => srv.isChecked).map(s => s.name),
+		});
 		// onCreateTodo({ ...fields, services: fields.services.map(s => s.name) });
 	}
 
@@ -133,7 +164,7 @@ const CreateTodoModal = ({
 		<Modal show={isVisible} onHide={onClose}>
 			<Modal.Header closeButton>
 				<Modal.Title>
-					{mode === "edit" ? `Edit "${editing.name}" ` : "Add New"} Event
+					{mode === "edit" ? `Edit "${editing?.name}" ` : "Add New"} Event
 				</Modal.Title>
 			</Modal.Header>
 			<Modal.Body>
@@ -180,54 +211,14 @@ const CreateTodoModal = ({
 					<label htmlFor='event-services' className='form-label'>
 						Services
 					</label>
-					<div>
-						{services.map((service, index) => (
-							<div key={index} className='form-check form-switch'>
-								<input
-									className='form-check-input'
-									type='checkbox'
-									role='switch'
-									id={`service-${service.id}`}
-									name='service'
-									value={service.name}
-									checked={fields?.services.includes(service.name)}
-									onChange={onChangeService}
-								/>
-								<label
-									className='form-check-label'
-									htmlFor={`service-${service.id}`}
-								>
-									{service.name}
-									{service.new && (
-										<ButtonGroup size='sm' className='ms-2 service-action'>
-											<Button
-												variant='link'
-												className='text-dark'
-												onClick={() => onEditService(service)}
-											>
-												<i className='fa fa-pencil'></i>
-											</Button>
-											<Button
-												variant='link'
-												className='text-danger'
-												onClick={() => onDeleteService(service)}
-											>
-												<i className='fa fa-trash'></i>
-											</Button>
-										</ButtonGroup>
-									)}
-								</label>
-							</div>
-						))}
-						<Button
-							variant='success'
-							size='sm'
-							className='mt-2'
-							onClick={onAddNewService}
-						>
-							+ Add Service
-						</Button>
-					</div>
+					<Services
+						value={editing?.services || []}
+						services={fields?.services || []}
+						onChange={onChangeService}
+						onEdit={onEditService}
+						onDelete={onDeleteService}
+						onAddNew={onAddNewService}
+					/>
 				</div>
 				<div className='mb-3'>
 					<div {...getRootProps({ className: "dropzone" })}>
@@ -236,18 +227,16 @@ const CreateTodoModal = ({
 							Drag &apos;n&apos; drop some files here, or click to select files
 						</p>
 					</div>
-					<div className='mt-2'>
+					<div className='mt-2 d-flex gap-2'>
 						{fields?.files &&
-							fields.files.map((img, index) => (
-								<Image
-									key={index}
-									src={img}
-									className='rounded me-2'
-									width={70}
-									height={70}
-									alt='image'
-								/>
-							))}
+							fields.files.map((file, index) => {
+								switch (file.type) {
+									case "image":
+										return <AttachmentPreview as={Image} src={file.preview} />;
+									case "video":
+										return <AttachmentPreview as='video' src={file.preview} />;
+								}
+							})}
 					</div>
 				</div>
 			</Modal.Body>

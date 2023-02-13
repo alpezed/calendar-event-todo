@@ -1,5 +1,4 @@
 import { Badge } from "react-bootstrap";
-import moment from "moment";
 
 const TodoItem = ({ todo, onRemoveTodo, onEditTodo }) => {
 	return (

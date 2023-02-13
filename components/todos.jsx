@@ -2,25 +2,20 @@
 
 import { useState } from "react";
 import Button from "react-bootstrap/Button";
-import moment from "moment";
+
+import { SERVICES, DEFAULT_TODOS } from "@/utils";
 
 import TodoList from "./todo-list";
 import CreateTodoModal from "./create-todo-modal";
-
-const DEFAULT_TODOS = [
-	{
-		id: 1,
-		name: "Initial Test Event",
-		date: moment().format("LL"),
-		services: ["General Cleaning", "Wash Clothes"],
-		files: [],
-	},
-];
 
 const Todos = () => {
 	const [isModalVisible, setIsModalVisible] = useState(false);
 	const [todos, setTodos] = useState(DEFAULT_TODOS);
 	const [editingItem, setEditingItem] = useState(null);
+	const [fields, setFields] = useState({
+		services: SERVICES,
+		files: [],
+	});
 
 	const handleClose = () => setIsModalVisible(false);
 	const handleShow = () => setIsModalVisible(true);
@@ -88,23 +83,23 @@ const Todos = () => {
 					</div>
 				</div>
 			</div>
-			{isModalVisible && (
-				<CreateTodoModal
-					mode='add'
-					isVisible={isModalVisible}
-					onClose={handleClose}
-					onCreateTodo={addNewTodoHandler}
-				/>
-			)}
-			{editingItem && (
-				<CreateTodoModal
-					mode='edit'
-					editing={editingItem}
-					isVisible={!!editingItem}
-					onClose={() => setEditingItem(null)}
-					onCreateTodo={editTodoHandler}
-				/>
-			)}
+			<CreateTodoModal
+				mode='add'
+				fields={fields}
+				setFields={setFields}
+				isVisible={isModalVisible}
+				onClose={handleClose}
+				onCreateTodo={addNewTodoHandler}
+			/>
+			<CreateTodoModal
+				mode='edit'
+				editing={editingItem}
+				fields={fields}
+				setFields={setFields}
+				isVisible={!!editingItem}
+				onClose={() => setEditingItem(null)}
+				onCreateTodo={editTodoHandler}
+			/>
 		</>
 	);
 };
